@@ -2,4 +2,4 @@
 #define int int
 vector<int> a;
 float a =1, b;
-map<int,vector<float>> example2;
+map<int,vector<float>> example;
