@@ -1,0 +1,4 @@
+set int small;
+[int] a;
+float a=1,b;
+{int: [float]} example2;
