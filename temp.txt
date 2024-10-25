@@ -1,0 +1,9 @@
+txpression
+    : variable
+    | LEFT_BRACE expression RIGHT_BRACE                         // Grouping with braces
+    | LEFT_PAR expression RIGHT_PAR                         // Grouping with parentheses
+    | BIT_NOT expression                                        // Unary bitwise NOT
+    | LOG_NOT expression                                        // Unary logical NOT
+    | ADD expression
+    | SUB expression
+    

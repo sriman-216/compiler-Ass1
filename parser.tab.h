@@ -101,8 +101,7 @@ extern int yydebug;
     LOG_NOT = 302,                 /* LOG_NOT  */
     IDENTIFIER = 303,              /* IDENTIFIER  */
     INTNUM = 304,                  /* INTNUM  */
-    FLOATNUM = 305,                /* FLOATNUM  */
-    EQUAL = 306                    /* EQUAL  */
+    FLOATNUM = 305                 /* FLOATNUM  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -117,7 +116,7 @@ union YYSTYPE
     float float_val;           // Float value
     char *str_val;             // String value
 
-#line 121 "parser.tab.h"
+#line 120 "parser.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

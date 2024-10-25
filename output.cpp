@@ -1,5 +1,7 @@
-#include <bits/stdc++>
-#define int int
-vector<int> a;
-float a =1, b;
-map<int,vector<float>> example;
+#include <bits/stdcpp++>
+float sum =0;
+int i =0;
+setup
+int main(){
+int i =0;
+}

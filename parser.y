@@ -30,30 +30,35 @@ extern FILE *yyout; // Declare yyout
 %token <int_val> INTNUM
 %token <float_val> FLOATNUM
 
-%type <str_val> Variable_Declaration Type set_statements setUp LEFT_BRACKET RIGHT_BRACKET LEFT_BRACE RIGHT_BRACE COLON IdentifierList Identifier
-%type <str_val> EQUAL_OPERATOR
+%type <str_val> Variable_Declaration Type set_statements setUp  IdentifierList Identifier
+
 %start Start
 
-%left BIT_AND BIT_OR BIT_NOT BIT_XOR
-%left EQUAL_OPERATOR NOT_EQUAL GREATER_EQUAL LESS_EQUAL GREATER LESS_THAN EQUAL
+%left BIT_AND BIT_OR BIT_NOT BIT_XOR 
+%left EQUAL_OPERATOR NOT_EQUAL GREATER_EQUAL LESS_EQUAL GREATER LESS_THAN DOUBLE_EQUAL
 %left ADD SUB
 %left LOG_AND LOG_OR LOG_NOT
 %left MUL DIV MOD
 
 %%
 Start
-    : header setUp session
+    : header setUp {fprintf(outputCPP, "int main(){\n");}session {fprintf(outputCPP, "}\n");}
     ;
 
 header
-    : {fprintf(outputCPP, "#include <bits/stdc++>\n");}
+    : {fprintf(outputCPP, "#include <bits/stdcpp++>\n");}
     ;
 
 setUp
-    : set_statements SEMICOLON
-    | {$$ = strdup("");}
+    : set_statements SEMICOLON func_declarations{fprintf(outputCPP, "setup\n");}
+    | func_declarations  {fprintf(outputCPP, "setup\n");}
     ;
 
+func_declarations
+    : func_declarations func_declaration
+    |
+    ; 
+    
 set_statements
     : SET INT BIG         { fprintf(outputCPP, "#define int long long\n"); } { fprintf(parserFile, "%d: Set Statement\n", yylineno); }
     | SET INT SMALL     { fprintf(outputCPP, "#define int int\n"); }       { fprintf(parserFile, "%d: Set Statement\n", yylineno); }
@@ -65,9 +70,14 @@ session
     : session subsession 
     |
     ;
+
 subsession
     : Variable_Declaration SEMICOLON
-    | Assignment_Statement SEMICOLON
+    | expression SEMICOLON
+    | func_call SEMICOLON
+    | push_pop_statements SEMICOLON
+    | if_else_statements 
+    | loop 
     ;
 
 Variable_Declaration
@@ -102,31 +112,115 @@ Identifier
                                             free($1);}
     ;
 
-Assignment_Statement:
-    rhs EQUAL_OPERATOR lhs;
+Assignment_Statement
+    : rhs EQUAL_OPERATOR lhs;
 
 rhs
-    : refered_operater
-    | IDENTIFIER
-    ;
-
-refered_operater
-    : IDENTIFIER LEFT_BRACKET variable RIGHT_BRACKET
-    ;
-
-variable
-    : IDENTIFIER
-    | INTNUM
-    | FLOATNUM
+    : variable
     ;
 
 lhs 
     :
-assignment_expression
-	: conditional_expression
-	| unary_expression assignment_operator assignment_expression
-	;
+    | func_call 
+    | terminal_expression
+    ;
 
+func_call
+    : IDENTIFIER LEFT_PAR func_call_arguments RIGHT_PAR
+    ;
+
+func_call_arguments
+    : expression COMMA func_call_arguments
+    | expression
+    |
+    ;
+
+push_pop_statements
+    : IDENTIFIER LF_POINTER LEFT_BRACKET expression RIGHT_BRACKET //pushes expr to the back end of the vector
+    | LEFT_BRACKET expression RIGHT_BRACKET RIG_POINTER IDENTIFIER //
+    | IDENTIFIER RIG_POINTER LEFT_BRACKET expression RIGHT_BRACKET
+    | IDENTIFIER RIG_POINTER LEFT_BRACKET  RIGHT_BRACKET
+    | LEFT_BRACKET RIGHT_BRACKET LF_POINTER IDENTIFIER
+    ;
+
+expression
+    : LEFT_BRACE expression RIGHT_BRACE                         // Grouping with braces
+    | LEFT_PAR expression RIGHT_PAR                         // Grouping with parentheses
+    | BIT_NOT expression                                        // Unary bitwise NOT
+    | LOG_NOT expression                                        // Unary logical NOT
+    | ADD expression
+    | SUB expression 
+    | Assignment_Statement
+    | terminal_expression
+terminal_expression
+    : variable
+    | terminal_expression BIT_AND terminal_expression                             // Bitwise AND
+    | terminal_expression BIT_OR terminal_expression                              // Bitwise OR
+    | terminal_expression BIT_XOR terminal_expression                             // Bitwise XOR
+    | terminal_expression DOUBLE_EQUAL terminal_expression 
+    | terminal_expression ADD terminal_expression                                 // Addition
+    | terminal_expression SUB terminal_expression                                 // Subtraction
+    | terminal_expression MUL terminal_expression                                 // Multiplication
+    | terminal_expression DIV terminal_expression                                 // Division
+    | terminal_expression MOD terminal_expression                     // Equality (e.g., ==)
+    | terminal_expression NOT_EQUAL terminal_expression                           // Inequality (e.g., !=)
+    | terminal_expression GREATER_EQUAL terminal_expression                       // Greater than or equal
+    | terminal_expression LESS_EQUAL terminal_expression                          // Less than or equal
+    | terminal_expression GREATER terminal_expression                             // Greater than
+    | terminal_expression LESS_THAN terminal_expression                           // Less than                              // Modulus
+    | terminal_expression LOG_AND terminal_expression                             // Logical AND
+    | terminal_expression LOG_OR terminal_expression                             // Logical OR
+    ;
+variable
+    : IDENTIFIER
+    | INTNUM
+    | FLOATNUM
+    | IDENTIFIER LEFT_BRACKET expression RIGHT_BRACKET
+    | SIZE LEFT_BRACKET expression RIGHT_BRACKET
+    ;
+
+if_else_statements
+    :LESS_THAN if_statements session ifelse_statements GREATER
+    ;
+
+if_statements
+    : expression QUESTION_MARK 
+    ;
+
+ifelse_statements
+    : expression QUESTION_MARK session ifelse_statements
+    | else_statement 
+    | 
+    ;
+
+else_statement
+    : ELSE COLON session
+    ;
+
+loop
+    : LOOP LEFT_PAR Variable_Declaration SEMICOLON expression SEMICOLON expression RIGHT_PAR COLON LESS_THAN session GREATER final
+    ;
+final
+    : FINALLY COLON LESS_THAN session GREATER
+    |
+func_declaration
+    : FUNCTION IDENTIFIER LEFT_PAR func_dec_arguments SEMICOLON Type RIGHT_PAR
+    LESS_THAN session returnStatement GREATER 
+    |  FUNCTION IDENTIFIER LEFT_PAR func_dec_arguments SEMICOLON RIGHT_PAR
+    LESS_THAN session GREATER 
+    ;
+
+func_dec_arguments
+    : func_dec_argument COMMA func_dec_arguments 
+    | func_dec_argument
+    | 
+    ;
+func_dec_argument
+    : Type Identifier 
+    ;
+returnStatement
+    : RETURN expression SEMICOLON
+    ;
 
 %%
 
