@@ -112,9 +112,9 @@ union YYSTYPE
 {
 #line 16 "parser.y"
 
-    int int_val;               // Integer value
-    float float_val;           // Float value
-    char *str_val;             // String value
+    int int_val;               
+    float float_val;           
+    char *str_val;             
 
 #line 120 "parser.tab.h"
 

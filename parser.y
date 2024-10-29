@@ -7,18 +7,18 @@
 // Function prototypes
 void yyerror(const char *s);
 int yylex();
-extern int yylineno; // Declare yylineno to keep track of line numbers
+extern int yylineno; 
 extern FILE *yyin;
 extern FILE *tokenFile, *parserFile,*outputCPP;
 extern FILE *yyout; // Declare yyout
 %}
 
 %union {
-    int int_val;               // Integer value
-    float float_val;           // Float value
-    char *str_val;             // String value
+    int int_val;               
+    float float_val;           
+    char *str_val;             
 }
-%token LEFT_BRACE RIGHT_BRACE LEFT_PAR RIGHT_PAR COMMA COLON SEMICOLON QUESTION_MARK
+%token <str_val> LEFT_BRACE RIGHT_BRACE LEFT_PAR RIGHT_PAR COMMA COLON SEMICOLON QUESTION_MARK
 %token LESS_THAN GREATER DOUBLE_EQUAL LESS_EQUAL GREATER_EQUAL NOT_EQUAL
 %token SET IF ELSE LOOP FINALLY RETURN FUNCTION PRINT SIZE
 %token INT FLOAT SMALL BIG VOID
@@ -30,8 +30,10 @@ extern FILE *yyout; // Declare yyout
 %token <int_val> INTNUM
 %token <float_val> FLOATNUM
 
-%type <str_val> Variable_Declaration Type set_statements setUp  IdentifierList Identifier
-
+%type <str_val> Variable_Declaration Type set_statements setUp  IdentifierList Identifier final
+%type <str_val> Assignment_Statement rhs lhs func_call terminal_expression variable expression  
+%type <str_val> session subsession push_pop_statements if_else_statements loop func_declaration func_declarations func_dec_argument func_dec_arguments func_call_arguments
+%type <str_val> ifelse_statements 
 %start Start
 
 %left BIT_AND BIT_OR BIT_NOT BIT_XOR 
@@ -42,7 +44,7 @@ extern FILE *yyout; // Declare yyout
 
 %%
 Start
-    : header setUp {fprintf(outputCPP, "int main(){\n");}session {fprintf(outputCPP, "}\n");}
+    : header setUp {fprintf(outputCPP, "%sint main(){\n",$2);}session {fprintf(outputCPP, "%s}\n",$4);}
     ;
 
 header
@@ -50,17 +52,27 @@ header
     ;
 
 setUp
-    : set_statements SEMICOLON func_declarations{fprintf(outputCPP, "setup\n");}
-    | func_declarations  {fprintf(outputCPP, "setup\n");}
+    : set_statements SEMICOLON func_declarations { 
+          $$ = (char *)malloc(1024 * sizeof(char));
+          sprintf($$, "%s%s", $1, $3);
+      }
+    | func_declarations {
+          $$ = (char *)malloc(1024 * sizeof(char));
+          sprintf($$, "%s", $1);
+      }
     ;
 
+
 func_declarations
-    : func_declarations func_declaration
-    |
+    : func_declarations func_declaration { $$ = (char*) malloc(strlen($1) + strlen($2) + 2);
+      sprintf($$, "%s%s\n", $1, $2);
+      free($1);
+      free($2); }
+    |{ $$=strdup("");}
     ; 
     
 set_statements
-    : SET INT BIG         { fprintf(outputCPP, "#define int long long\n"); } { fprintf(parserFile, "%d: Set Statement\n", yylineno); }
+    : SET INT BIG       { fprintf(outputCPP, "#define int long long\n"); } { fprintf(parserFile, "%d: Set Statement\n", yylineno); }
     | SET INT SMALL     { fprintf(outputCPP, "#define int int\n"); }       { fprintf(parserFile, "%d: Set Statement\n", yylineno); }
     | SET FLOAT SMALL   { fprintf(outputCPP, "#define float float\n"); }   { fprintf(parserFile, "%d: Set Statement\n", yylineno); }
     | SET FLOAT BIG     { fprintf(outputCPP, "#define float double\n"); }  { fprintf(parserFile, "%d: Set Statement\n", yylineno); };
@@ -68,20 +80,58 @@ set_statements
 
 session
     : session subsession 
-    |
+     {
+      $$ = (char*) malloc(strlen($1) + strlen($2) + 2);
+      sprintf($$, "%s%s\n", $1, $2);
+      free($1);
+      free($2);
+    }
+    | { $$=strdup("");}
     ;
-
 subsession
-    : Variable_Declaration SEMICOLON
-    | expression SEMICOLON
-    | func_call SEMICOLON
-    | push_pop_statements SEMICOLON
+    : expression SEMICOLON 
+    {
+    $$ = (char *)malloc(1024 * sizeof(char));
+    sprintf($$, "%s;\n", $1);
+    free($1);
+    }
+    | Variable_Declaration SEMICOLON 
+    {
+    $$ = (char *)malloc(1024 * sizeof(char));
+    sprintf($$, "%s\n", $1);
+    free($1);
+    }
+    | func_call SEMICOLON 
+    {
+    $$ = (char *)malloc(1024 * sizeof(char));
+    sprintf($$, "%s\n", $1);
+    free($1);
+    }
+    | push_pop_statements SEMICOLON 
+    {
+    $$ = (char *)malloc(1024 * sizeof(char));
+    sprintf($$, "%s\n", "push_pop_statements");
+    }
     | if_else_statements 
+    {
+    $$ = (char *)malloc(1024 * sizeof(char));
+    sprintf($$, "%s\n", $1);
+    free($1);
+    }
     | loop 
+    {
+    $$ = (char *)malloc(1024 * sizeof(char));
+    sprintf($$, "%s\n", $1);
+    free($1);
+    }
     ;
-
 Variable_Declaration
-    : Type IdentifierList         { fprintf(outputCPP, "%s %s;\n", $1, $2); }  { fprintf(parserFile, "%d: Variable Declaration\n", yylineno); }
+    : Type IdentifierList
+    {
+    $$ = (char *)malloc(1024 * sizeof(char));
+    sprintf($$, "%s %s;", $1, $2);
+    }
+
     ;
 
 Type
@@ -97,130 +147,325 @@ Type
 
 IdentifierList
     : Identifier{$$ = $1;}
-    | Identifier COMMA IdentifierList{$$ = (char *)malloc(strlen($1)+strlen($3) + 50);
+    | Identifier COMMA IdentifierList {$$ = (char *)malloc(strlen($1)+strlen($3) + 50);
                                             sprintf($$,"%s, %s", $1,$3);}
     | {$$ = strdup("");}
     ;
 
 Identifier
     : IDENTIFIER{$$ = $1;}
-    | IDENTIFIER EQUAL_OPERATOR INTNUM{$$ = (char *)malloc(strlen($1) + 50);
-                                            sprintf($$,"%s =%d", $1,$3);
+    | IDENTIFIER EQUAL_OPERATOR INTNUM {$$ = (char *)malloc(strlen($1) + 50);
+                                            sprintf($$,"%s = %d", $1,$3);
                                             free($1);}
-    | IDENTIFIER EQUAL_OPERATOR FLOATNUM{$$ = (char *)malloc(strlen($1) + 50);
+    | IDENTIFIER EQUAL_OPERATOR FLOATNUM {$$ = (char *)malloc(strlen($1) + 50);
                                             sprintf($$,"%s = %f", $1,$3);
                                             free($1);}
     ;
 
 Assignment_Statement
-    : rhs EQUAL_OPERATOR lhs;
+    : rhs EQUAL_OPERATOR lhs 
+      { 
+          $$ = (char *)malloc(strlen($1) + strlen($3) + 50);
+          sprintf($$, "%s = %s", $1, $3);
+          free($1);
+          free($3);
+      }
+    ;
 
 rhs
-    : variable
+    : variable {$$= $1;}
     ;
 
 lhs 
-    :
-    | func_call 
-    | terminal_expression
+    : func_call {$$ = $1;}
+    | terminal_expression {$$ = $1;}
     ;
 
 func_call
-    : IDENTIFIER LEFT_PAR func_call_arguments RIGHT_PAR
+    : IDENTIFIER LEFT_PAR func_call_arguments RIGHT_PAR 
+    {
+        $$ = (char *)malloc(1024);
+        sprintf($$,"%s(%s)", $1,$3);
+    }
     ;
 
 func_call_arguments
     : expression COMMA func_call_arguments
-    | expression
-    |
+    {
+        $$ = (char *)malloc(1024);
+        sprintf($$,"%s,%s", $1,$3);
+    }
+    | expression{$$ = $1;}
+    | {$$ =strdup("");}
     ;
 
 push_pop_statements
-    : IDENTIFIER LF_POINTER LEFT_BRACKET expression RIGHT_BRACKET //pushes expr to the back end of the vector
-    | LEFT_BRACKET expression RIGHT_BRACKET RIG_POINTER IDENTIFIER //
+    : IDENTIFIER LF_POINTER LEFT_BRACKET expression RIGHT_BRACKET   
+    {
+        $$ = (char *)malloc(1024);
+        sprintf($$,"%s.push_back(%s);", $1,$4);
+    }
+    | LEFT_BRACKET expression RIGHT_BRACKET RIG_POINTER IDENTIFIER 
+    {
+        $$ = (char *)malloc(1024);
+        sprintf($$,"%s.insert(%s.begin(), %s);", $5,$5,$2);
+    }
     | IDENTIFIER RIG_POINTER LEFT_BRACKET expression RIGHT_BRACKET
+    {
+        $$ = (char *)malloc(1024);
+        sprintf($$,"%s = %s.back();\n %s.pop_back()", $4,$1,$1);
+    }
     | IDENTIFIER RIG_POINTER LEFT_BRACKET  RIGHT_BRACKET
+    {
+        $$ = (char *)malloc(1024);
+        sprintf($$,"%s.pop_back()",$1);
+    }
     | LEFT_BRACKET RIGHT_BRACKET LF_POINTER IDENTIFIER
+    {
+        $$ = (char *)malloc(1024);
+        sprintf($$,"%s.erase(%s.begin());",$4,$4);
+    }
     ;
 
 expression
-    : LEFT_BRACE expression RIGHT_BRACE                         // Grouping with braces
-    | LEFT_PAR expression RIGHT_PAR                         // Grouping with parentheses
-    | BIT_NOT expression                                        // Unary bitwise NOT
-    | LOG_NOT expression                                        // Unary logical NOT
-    | ADD expression
-    | SUB expression 
-    | Assignment_Statement
-    | terminal_expression
+    : Assignment_Statement {$$ = $1;}
+    | terminal_expression {$$ = $1;}
+    ;
+
 terminal_expression
     : variable
-    | terminal_expression BIT_AND terminal_expression                             // Bitwise AND
-    | terminal_expression BIT_OR terminal_expression                              // Bitwise OR
-    | terminal_expression BIT_XOR terminal_expression                             // Bitwise XOR
-    | terminal_expression DOUBLE_EQUAL terminal_expression 
-    | terminal_expression ADD terminal_expression                                 // Addition
-    | terminal_expression SUB terminal_expression                                 // Subtraction
-    | terminal_expression MUL terminal_expression                                 // Multiplication
-    | terminal_expression DIV terminal_expression                                 // Division
-    | terminal_expression MOD terminal_expression                     // Equality (e.g., ==)
-    | terminal_expression NOT_EQUAL terminal_expression                           // Inequality (e.g., !=)
-    | terminal_expression GREATER_EQUAL terminal_expression                       // Greater than or equal
-    | terminal_expression LESS_EQUAL terminal_expression                          // Less than or equal
-    | terminal_expression GREATER terminal_expression                             // Greater than
-    | terminal_expression LESS_THAN terminal_expression                           // Less than                              // Modulus
-    | terminal_expression LOG_AND terminal_expression                             // Logical AND
-    | terminal_expression LOG_OR terminal_expression                             // Logical OR
+      {
+          $$ = (char *)malloc(strlen($1) + 1);
+          strcpy($$, $1);
+      }
+    | LEFT_BRACE terminal_expression RIGHT_BRACE
+      {
+          $$ = (char *)malloc(strlen($2) + 3);
+          sprintf($$, "{%s}", $2);
+          free($2);
+      }
+    | LEFT_PAR terminal_expression RIGHT_PAR
+      {
+          $$ = (char *)malloc(strlen($2) + 3);
+          sprintf($$, "(%s)", $2);
+          free($2);
+      }
+    | BIT_NOT terminal_expression
+      {
+          $$ = (char *)malloc(strlen($2) + 5);
+          sprintf($$, "~%s", $2);
+          free($2);
+      }
+    | LOG_NOT terminal_expression
+      {
+          $$ = (char *)malloc(strlen($2) + 5);
+          sprintf($$, "!%s", $2);
+          free($2);
+      }
+    | ADD terminal_expression
+      {
+          $$ = (char *)malloc(strlen($2) + 2);
+          sprintf($$, "+%s", $2);
+          free($2);
+      }
+    | SUB terminal_expression
+      {
+          $$ = (char *)malloc(strlen($2) + 2);
+          sprintf($$, "-%s", $2);
+          free($2);
+      }
+    | terminal_expression BIT_AND terminal_expression
+      {
+          $$ = (char *)malloc(strlen($1) + strlen($3) + 4);
+          sprintf($$, "%s & %s", $1, $3);
+          free($1); free($3);
+      }
+    | terminal_expression BIT_OR terminal_expression
+      {
+          $$ = (char *)malloc(strlen($1) + strlen($3) + 4);
+          sprintf($$, "%s | %s", $1, $3);
+          free($1); free($3);
+      }
+    | terminal_expression BIT_XOR terminal_expression
+      {
+          $$ = (char *)malloc(strlen($1) + strlen($3) + 4);
+          sprintf($$, "%s ^ %s", $1, $3);
+          free($1); free($3);
+      }
+    | terminal_expression DOUBLE_EQUAL terminal_expression
+      {
+          $$ = (char *)malloc(strlen($1) + strlen($3) + 5);
+          sprintf($$, "%s == %s", $1, $3);
+          free($1); free($3);
+      }
+    | terminal_expression ADD terminal_expression
+      {
+          $$ = (char *)malloc(strlen($1) + strlen($3) + 4);
+          sprintf($$, "%s + %s", $1, $3);
+          free($1); free($3);
+      }
+    | terminal_expression SUB terminal_expression
+      {
+          $$ = (char *)malloc(strlen($1) + strlen($3) + 4);
+          sprintf($$, "%s - %s", $1, $3);
+          free($1); free($3);
+      }
+    | terminal_expression MUL terminal_expression
+      {
+          $$ = (char *)malloc(strlen($1) + strlen($3) + 4);
+          sprintf($$, "%s * %s", $1, $3);
+          free($1); free($3);
+      }
+    | terminal_expression DIV terminal_expression
+      {
+          $$ = (char *)malloc(strlen($1) + strlen($3) + 4);
+          sprintf($$, "%s / %s", $1, $3);
+          free($1); free($3);
+      }
+    | terminal_expression MOD terminal_expression
+      {
+          $$ = (char *)malloc(strlen($1) + strlen($3) + 4);
+          sprintf($$, "%s %% %s", $1, $3);
+          free($1); free($3);
+      }
+    | terminal_expression NOT_EQUAL terminal_expression
+      {
+          $$ = (char *)malloc(strlen($1) + strlen($3) + 5);
+          sprintf($$, "%s != %s", $1, $3);
+          free($1); free($3);
+      }
+    | terminal_expression GREATER_EQUAL terminal_expression
+      {
+          $$ = (char *)malloc(strlen($1) + strlen($3) + 5);
+          sprintf($$, "%s >= %s", $1, $3);
+          free($1); free($3);
+      }
+    | terminal_expression LESS_EQUAL terminal_expression
+      {
+          $$ = (char *)malloc(strlen($1) + strlen($3) + 5);
+          sprintf($$, "%s <= %s", $1, $3);
+          free($1); free($3);
+      }
+    | terminal_expression GREATER terminal_expression
+      {
+          $$ = (char *)malloc(strlen($1) + strlen($3) + 4);
+          sprintf($$, "%s > %s", $1, $3);
+          free($1); free($3);
+      }
+    | terminal_expression LESS_THAN terminal_expression
+      {
+          $$ = (char *)malloc(strlen($1) + strlen($3) + 4);
+          sprintf($$, "%s < %s", $1, $3);
+          free($1); free($3);
+      }
+    | terminal_expression LOG_AND terminal_expression
+      {
+          $$ = (char *)malloc(strlen($1) + strlen($3) + 5);
+          sprintf($$, "%s && %s", $1, $3);
+          free($1); free($3);
+      }
+    | terminal_expression LOG_OR terminal_expression
+      {
+          $$ = (char *)malloc(strlen($1) + strlen($3) + 5);
+          sprintf($$, "%s || %s", $1, $3);
+          free($1); free($3);
+      }
     ;
+
 variable
-    : IDENTIFIER
-    | INTNUM
-    | FLOATNUM
-    | IDENTIFIER LEFT_BRACKET expression RIGHT_BRACKET
-    | SIZE LEFT_BRACKET expression RIGHT_BRACKET
+    : IDENTIFIER {$$ = (char *)malloc(50);sprintf($$,"%s", $1);}
+    | INTNUM{$$ = (char *)malloc(50);sprintf($$,"%d", $1);}
+    | FLOATNUM{$$ = (char *)malloc(50);sprintf($$,"%f", $1);}
+    | IDENTIFIER LEFT_BRACKET expression RIGHT_BRACKET{$$ = (char *)malloc(strlen($1)+strlen($3) + 50);
+                                            sprintf($$,"%s[%s]", $1,$3);
+                                            free($1);free($3);}
+    | SIZE LEFT_BRACKET expression RIGHT_BRACKET{$$ = (char *)malloc(strlen($3) + 50);
+                                            sprintf($$,"sizeof(%s)",$3);
+                                            free($3);}
     ;
 
 if_else_statements
-    :LESS_THAN if_statements session ifelse_statements GREATER
-    ;
-
-if_statements
-    : expression QUESTION_MARK 
+    :LESS_THAN expression QUESTION_MARK session ifelse_statements GREATER 
+    {
+        $$ = (char *)malloc(1024);
+        sprintf($$,"if(%s)\n{\n%s\n}\n%s", $2,$4,$5);
+        free($2);free($4);
+    }
     ;
 
 ifelse_statements
     : expression QUESTION_MARK session ifelse_statements
-    | else_statement 
-    | 
-    ;
-
-else_statement
-    : ELSE COLON session
+    {
+        $$ = (char *)malloc(1024);
+        sprintf($$,"elseif(%s)\n{\n%s\n}\n%s", $1,$3,$4);
+        free($1);free($4);
+    }
+    | ELSE COLON session 
+    {
+        $$ = (char *)malloc(1024);
+        sprintf($$,"else\n{\n%s\n}\n", $3);
+    }
+    | {$$=strdup("");};
     ;
 
 loop
-    : LOOP LEFT_PAR Variable_Declaration SEMICOLON expression SEMICOLON expression RIGHT_PAR COLON LESS_THAN session GREATER final
+    : LOOP LEFT_PAR Type IdentifierList SEMICOLON expression SEMICOLON expression  RIGHT_PAR COLON LESS_THAN session GREATER final 
+    { 
+        $$ = (char*)malloc(1024); 
+        sprintf($$, "%s %s\nfor (%s ; %s ; %s) \n{\nHello%s\n}\n%s", $3,$4,$4,$6, $8,$12,$14); 
+    }
     ;
+
 final
     : FINALLY COLON LESS_THAN session GREATER
-    |
+    { 
+        $$ = $4;
+    }
+    |   {$$=strdup("");}
+    ;
+
 func_declaration
-    : FUNCTION IDENTIFIER LEFT_PAR func_dec_arguments SEMICOLON Type RIGHT_PAR
-    LESS_THAN session returnStatement GREATER 
+    : FUNCTION IDENTIFIER LEFT_PAR func_dec_arguments SEMICOLON Type RIGHT_PAR 
+    LESS_THAN session GREATER 
+   {
+    $$ = (char *)malloc(1024 * sizeof(char));  
+    sprintf($$, "%s %s(%s) {\n%s}\n", $6, $2, $4, $9); 
+
+    free($6);
+    free($2);
+    free($4);
+    free($9);
+    }
+
     |  FUNCTION IDENTIFIER LEFT_PAR func_dec_arguments SEMICOLON RIGHT_PAR
     LESS_THAN session GREATER 
+   {
+    $$ = (char *)malloc(1024 * sizeof(char));
+    sprintf($$, "void %s(%s) {\n%s}\n", $2, $4, $8);
+    free($2);
+    free($4);
+    free($8);
+}
+
     ;
 
 func_dec_arguments
-    : func_dec_argument COMMA func_dec_arguments 
-    | func_dec_argument
-    | 
+    : func_dec_argument COMMA func_dec_arguments {
+        $$ = (char *)malloc(strlen($1) + strlen($3) + 3); 
+        sprintf($$, "%s, %s", $1, $3); 
+    }
+    | func_dec_argument {$$ = $1;}
+    | {$$ = strdup("");}
     ;
+
 func_dec_argument
     : Type Identifier 
+    {
+      $$ = (char*)malloc(strlen($1) + strlen($2) + 2);
+      sprintf($$, "%s %s", $1, $2);
+    }
     ;
-returnStatement
-    : RETURN expression SEMICOLON
-    ;
+
 
 %%
 
