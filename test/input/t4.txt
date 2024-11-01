@@ -1,0 +1,4 @@
+set small int; # Syntax error: incorrect order
+float a;
+a = 3.5 +; # Syntax error: incomplete expression
+print(a);

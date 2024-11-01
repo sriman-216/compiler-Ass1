@@ -1,0 +1,12 @@
+set float big;
+func calculate ([float] values; float) <
+    float sum = 0;
+    loop (int i=0; i < size[values]; i=i+1):
+    <
+        sum = sum + values[i];
+    >
+    return sum;
+>
+[float] values;
+values<-[1.1]; values<-[2.2]; values<-[3.3];
+print(calculate(values));

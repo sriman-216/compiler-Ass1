@@ -1,0 +1,8 @@
+set int big;
+[float] numbers;
+numbers<-[5];
+loop (int i=0; i < size(numbers); i=i+1): # Syntax error: incorrect access method
+<
+    numbers[i] = numbers[i] * 2;
+>
+print(numbers[0]);

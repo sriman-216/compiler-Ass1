@@ -1,0 +1,7 @@
+1 : RESERVED WORD : set
+1 : TYPE : int
+1 : TYPE : big
+1 : PUNCTUATION : ;
+2 : RESERVED WORD : set
+
+Error: syntax error at line 2.

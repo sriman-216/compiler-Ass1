@@ -1,0 +1,8 @@
+set int small;
+[int] numbers;
+numbers<-[5];
+loop (int i=0; i < size[numbers]; i=i+1):
+<
+    numbers[i] = numbers[i] + 2;
+>
+print(numbers[0]);

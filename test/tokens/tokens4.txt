@@ -1,0 +1,4 @@
+1 : RESERVED WORD : set
+1 : TYPE : small
+
+Error: syntax error at line 1.

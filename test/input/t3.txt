@@ -1,0 +1,3 @@
+set int big;
+set float small;
+if (x < 10 ? x = 1; else: x = 2;);
